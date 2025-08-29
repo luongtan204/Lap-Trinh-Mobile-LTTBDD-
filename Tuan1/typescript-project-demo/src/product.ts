@@ -1,4 +1,4 @@
-class Product {
+export class Product {
     name: string;
     price: number;
 
@@ -7,7 +7,6 @@ class Product {
         this.price = price;
     }
 
-    
     filterByPrice(products: Product[], minPrice: number): Product[] {
         return products.filter(product => product.price > minPrice);
     }

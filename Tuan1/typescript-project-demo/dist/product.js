@@ -1,4 +1,6 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.Product = void 0;
 class Product {
     constructor(name, price) {
         this.name = name;
@@ -8,6 +10,7 @@ class Product {
         return products.filter(product => product.price > minPrice);
     }
 }
+exports.Product = Product;
 const products = [
     new Product("Laptop", 1200),
     new Product("Mouse", 25),

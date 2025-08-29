@@ -1,5 +1,5 @@
 import { Person } from './person';
-class Student extends Person {
+export class Student extends Person {
     grade: string;
 
     constructor(name: string, age: number, grade: string) {
