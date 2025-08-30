@@ -4,6 +4,6 @@ const asyncHello = new Promise<string>((resolve) => {
   }, 2000);
 });
 
-asyncHello.then((message) => {
-  console.log(message);
-});
+
+
+export { asyncHello };
