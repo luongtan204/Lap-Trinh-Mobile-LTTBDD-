@@ -9,7 +9,3 @@ function simulateTask(time) {
         }, time);
     });
 }
-// Example usage:
-simulateTask(1000).then((message) => {
-    console.log(message); // Outputs: Task done after 1 second
-});

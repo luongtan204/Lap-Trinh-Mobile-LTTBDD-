@@ -6,8 +6,3 @@ export function simulateTask(time: number): Promise<string> {
     }, time);
   });
 }
-
-// Example usage:
-simulateTask(1000).then((message) => {
-  console.log(message); // Outputs: Task done after 1 second
-});
