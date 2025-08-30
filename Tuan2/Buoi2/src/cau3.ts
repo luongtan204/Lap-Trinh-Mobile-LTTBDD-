@@ -1,4 +1,4 @@
-function rejectWithError(): Promise<never> {
+export function rejectWithError(): Promise<never> {
   return new Promise((_, reject) => {
     setTimeout(() => {
       reject(new Error("Something went wrong"));

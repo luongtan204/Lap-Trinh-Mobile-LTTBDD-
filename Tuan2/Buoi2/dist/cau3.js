@@ -1,4 +1,6 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.rejectWithError = rejectWithError;
 function rejectWithError() {
     return new Promise((_, reject) => {
         setTimeout(() => {

@@ -1,4 +1,4 @@
-function getNumberAsync(): Promise<number> {
+export function getNumberAsync(): Promise<number> {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve(10);

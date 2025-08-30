@@ -1,4 +1,4 @@
-const randomNumberPromise = new Promise<number>((resolve, reject) => {
+export const randomNumberPromise = new Promise<number>((resolve, reject) => {
   const num = Math.random();
   if (!isNaN(num)) {
     resolve(num);

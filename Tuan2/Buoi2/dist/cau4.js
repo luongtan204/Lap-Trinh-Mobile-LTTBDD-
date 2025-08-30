@@ -1,5 +1,7 @@
 "use strict";
-const randomNumberPromise = new Promise((resolve, reject) => {
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.randomNumberPromise = void 0;
+exports.randomNumberPromise = new Promise((resolve, reject) => {
     const num = Math.random();
     if (!isNaN(num)) {
         resolve(num);
@@ -8,7 +10,7 @@ const randomNumberPromise = new Promise((resolve, reject) => {
         reject(new Error("Failed to generate a random number"));
     }
 });
-randomNumberPromise
+exports.randomNumberPromise
     .then((number) => {
     console.log("Random number:", number);
 })
