@@ -1,0 +1,101 @@
+import React, { useState } from "react";
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
+
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+};
+
+const products: Product[] = [
+  { id: "1", name: "Cà phê sữa", price: 20000 },
+  { id: "2", name: "Trà sữa trân châu", price: 30000 },
+  { id: "3", name: "Sinh tố xoài", price: 25000 },
+  { id: "4", name: "Nước cam", price: 15000 },
+];
+
+const ProductList: React.FC = () => {
+  const [cart, setCart] = useState<Product[]>([]);
+
+  const addToCart = (product: Product) => {
+    setCart([...cart, product]);
+  };
+
+  const totalPrice = cart.reduce((sum, item) => sum + item.price, 0);
+
+  const renderItem = ({ item }: { item: Product }) => (
+    <View style={styles.item}>
+      <View>
+        <Text style={styles.name}>{item.name}</Text>
+        <Text style={styles.price}>{item.price.toLocaleString()} đ</Text>
+      </View>
+      <TouchableOpacity style={styles.button} onPress={() => addToCart(item)}>
+        <Text style={styles.buttonText}>Thêm vào giỏ</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      {/* Thông tin giỏ hàng */}
+      <Text style={styles.cartInfo}>
+        🛒 {cart.length} sản phẩm | Tổng: {totalPrice.toLocaleString()} đ
+      </Text>
+
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+      />
+    </View>
+  );
+};
+
+export default ProductList;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: "#f8f8f8",
+  },
+  cartInfo: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  item: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  price: {
+    fontSize: 14,
+    color: "#555",
+    marginTop: 4,
+  },
+  button: {
+    backgroundColor: "#4caf50",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+});
