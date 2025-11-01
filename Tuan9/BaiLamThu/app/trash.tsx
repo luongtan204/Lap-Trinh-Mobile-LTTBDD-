@@ -18,7 +18,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { databaseService, Task } from '@/services/database';
 
 interface DeletedTransaction extends Task {
-  deletedAt: string;
+  deletedAt?: string;
 }
 
 export default function TrashScreen() {  const [deletedTransactions, setDeletedTransactions] = useState<DeletedTransaction[]>([]);
@@ -39,15 +39,29 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
       loadDeletedTransactions();
     }, [])
   );
-
   const loadDeletedTransactions = async () => {
     try {
       await databaseService.initDatabase();
       const deleted = await databaseService.getDeletedTransactions();
-      setDeletedTransactions(deleted as DeletedTransaction[]);
+      
+      // Filter and validate deleted transactions
+      const validDeletedTransactions = deleted
+        .filter(item => item && item.isDeleted === 1)
+        .map(item => ({
+          ...item,
+          title: item.title || 'Untitled',
+          amount: item.amount || 0,
+          category: item.category || 'Others',
+          type: item.type || 'expense',
+          createdAt: item.createdAt || new Date().toISOString(),
+          deletedAt: item.deletedAt || new Date().toISOString()
+        })) as DeletedTransaction[];
+        
+      setDeletedTransactions(validDeletedTransactions);
     } catch (error) {
       console.error('Error loading deleted transactions:', error);
       Alert.alert('Lỗi', 'Không thể tải danh sách giao dịch đã xóa');
+      setDeletedTransactions([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -205,19 +219,16 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
           />
         </View>
         <View style={styles.deletedItemDetails}>
-          <Text style={styles.deletedItemTitle}>{item.title}</Text>
-          <Text style={styles.deletedItemInfo}>
-            {item.category} • {new Date(item.createdAt).toLocaleDateString('vi-VN')} • {item.type === 'income' ? 'Thu' : 'Chi'}
+          <Text style={styles.deletedItemTitle}>{item.title}</Text>          <Text style={styles.deletedItemInfo}>
+            {item.category} • {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'N/A'} • {item.type === 'income' ? 'Thu' : 'Chi'}
+          </Text><Text style={styles.deletedDate}>
+            Đã xóa: {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString('vi-VN') : 'N/A'} lúc {item.deletedAt ? new Date(item.deletedAt).toLocaleTimeString('vi-VN') : 'N/A'}
           </Text>
-          <Text style={styles.deletedDate}>
-            Đã xóa: {new Date(item.deletedAt).toLocaleDateString('vi-VN')} lúc {new Date(item.deletedAt).toLocaleTimeString('vi-VN')}
-          </Text>
-        </View>
-        <Text style={[
+        </View>        <Text style={[
           styles.deletedItemAmount, 
           { color: item.type === 'income' ? '#16a34a' : '#dc2626' }
         ]}>
-          {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
+          {item.type === 'income' ? '+' : '-'}${(item.amount || 0).toFixed(2)}
         </Text>
       </View>
       
@@ -374,10 +385,49 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
                   </View>
                 ) : null
               }
-            />
-          </>
+            />          </>
         )}
       </View>
+
+      {/* Context Menu Modal for Long Press */}
+      <Modal
+        transparent={true}
+        visible={contextMenuVisible}
+        animationType="none"
+        onRequestClose={hideContextMenu}
+      >
+        <TouchableOpacity 
+          style={styles.contextMenuOverlay}
+          activeOpacity={1}
+          onPress={hideContextMenu}
+        >
+          <View 
+            style={[
+              styles.contextMenu,
+              { 
+                left: contextMenuPosition.x, 
+                top: contextMenuPosition.y - 120 
+              }
+            ]}
+          >
+            <TouchableOpacity 
+              style={styles.contextMenuItem}
+              onPress={handleRestoreFromMenu}
+            >
+              <Ionicons name="refresh" size={20} color="#10b981" />
+              <Text style={styles.contextMenuText}>Khôi phục</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.contextMenuItem, styles.contextMenuItemDanger]}
+              onPress={handlePermanentDeleteFromMenu}
+            >
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+              <Text style={[styles.contextMenuText, styles.contextMenuTextDanger]}>Xóa vĩnh viễn</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -603,11 +653,48 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#64748b',
     marginTop: 12,
-  },
-  noResultsSubtext: {
+  },  noResultsSubtext: {
     fontSize: 14,
     color: '#94a3b8',
     marginTop: 4,
     textAlign: 'center',
+  },
+  // Context Menu Styles
+  contextMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  contextMenu: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    minWidth: 150,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  contextMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  contextMenuItemDanger: {
+    borderBottomWidth: 0,
+  },
+  contextMenuText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+    marginLeft: 12,
+  },
+  contextMenuTextDanger: {
+    color: '#ef4444',
   },
 });
