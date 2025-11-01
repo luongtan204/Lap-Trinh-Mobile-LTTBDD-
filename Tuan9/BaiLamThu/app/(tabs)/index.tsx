@@ -319,6 +319,12 @@ export default function ExpenseTrackerScreen() {
                 <Ionicons name="search" size={24} color="#6366f1" />
               </TouchableOpacity>
               <TouchableOpacity 
+                style={styles.statisticsButton}
+                onPress={() => router.push('./../../statistics' as any)}
+              >
+                <Ionicons name="stats-chart" size={24} color="#6366f1" />
+              </TouchableOpacity>
+              <TouchableOpacity 
                 style={styles.syncButton}
                 onPress={() => router.push('./../../sync' as any)}
               >
@@ -683,6 +689,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },  searchButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  statisticsButton: {
     padding: 8,
     marginRight: 8,
   },
