@@ -7,7 +7,9 @@ import {
   TextInput, 
   FlatList, 
   Alert,
-  Modal 
+  Modal,
+  Pressable,
+  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,9 +30,12 @@ export default function ExpenseTrackerScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Food');
-  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
-  const [refreshing, setRefreshing] = useState(false);
+  const [category, setCategory] = useState('Food');  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [refreshing, setRefreshing] = useState(false);  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   // Initialize database và load transactions
   useEffect(() => {
@@ -44,8 +49,7 @@ export default function ExpenseTrackerScreen() {
     } catch (error) {
       console.error('Error initializing app:', error);
     }
-  };
-  const loadTransactions = async () => {
+  };  const loadTransactions = async () => {
     try {
       const dbTransactions = await databaseService.getAllTransactions();
       // Convert Task to Transaction format
@@ -62,6 +66,19 @@ export default function ExpenseTrackerScreen() {
       console.error('Error loading transactions:', error);
     }
   };
+
+  // Lọc transactions theo tìm kiếm
+  const filteredTransactions = transactions.filter(transaction => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      transaction.title.toLowerCase().includes(query) ||
+      transaction.category.toLowerCase().includes(query) ||
+      transaction.amount.toString().includes(query) ||
+      (transaction.type === 'income' ? 'thu' : 'chi').includes(query)
+    );
+  });
 
   // Reload data when screen comes into focus - cập nhật lại danh sách theo yêu cầu câu c
   useFocusEffect(
@@ -103,7 +120,57 @@ export default function ExpenseTrackerScreen() {
       console.error('Error adding transaction:', error);
       Alert.alert('Lỗi', 'Không thể thêm giao dịch');
     }
-  };  const deleteTransaction = (id: number) => {
+  };  // Hiển thị context menu khi long press theo yêu cầu câu a
+  const showContextMenu = (transaction: Transaction, event: any) => {
+    const { pageX, pageY } = event.nativeEvent;
+    const screenWidth = Dimensions.get('window').width;
+    const menuWidth = 120;
+    
+    // Adjust position to keep menu within screen bounds
+    let x = pageX;
+    if (x + menuWidth > screenWidth) {
+      x = screenWidth - menuWidth - 10;
+    }
+    
+    setSelectedTransaction(transaction);
+    setContextMenuPosition({ x, y: pageY });
+    setContextMenuVisible(true);
+  };
+
+  const hideContextMenu = () => {
+    setContextMenuVisible(false);
+    setSelectedTransaction(null);
+  };
+
+  // Xác nhận xóa theo yêu cầu câu b
+  const confirmDeleteTransaction = () => {
+    if (!selectedTransaction) return;
+    
+    Alert.alert(
+      'Xóa Giao Dịch',
+      'Bạn có chắc chắn muốn xóa giao dịch này? Giao dịch sẽ được chuyển vào thùng rác.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        { 
+          text: 'Xóa', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await databaseService.deleteTransaction(selectedTransaction.id);
+              await loadTransactions();
+              hideContextMenu();
+              Alert.alert('Thành công', 'Giao dịch đã được chuyển vào thùng rác');
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Lỗi', 'Không thể xóa giao dịch');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const deleteTransaction = (id: number) => {
     Alert.alert(
       'Xóa Giao Dịch',
       'Bạn có chắc chắn muốn xóa giao dịch này?',
@@ -157,12 +224,13 @@ export default function ExpenseTrackerScreen() {
     };
     return icons[category] || 'ellipsis-horizontal';
   };  const renderTransactionItem = ({ item }: { item: Transaction }) => (
-    <TouchableOpacity 
+    <Pressable 
       style={styles.transactionItem}
       onPress={() => router.push({
         pathname: '/edit-transaction/[id]',
         params: { id: item.id }
       })} // Điều hướng đến Edit Screen theo yêu cầu câu a
+      onLongPress={(event) => showContextMenu(item, event)} // Long press để hiển thị menu xóa theo yêu cầu câu a
     >
       <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2' }]}>
         <Ionicons 
@@ -194,14 +262,59 @@ export default function ExpenseTrackerScreen() {
           <Ionicons name="trash" size={16} color="#ef4444" />
         </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </Pressable>
   );
 
-  return (
-    <SafeAreaView style={styles.container}>
+  return (    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>EXPENSE TRACKER</Text>
-      </View>      <View style={styles.summaryCard}>
+        {!isSearchActive ? (
+          <>
+            <Text style={styles.title}>EXPENSE TRACKER</Text>
+            <View style={styles.headerButtons}>
+              <TouchableOpacity 
+                style={styles.searchButton}
+                onPress={() => setIsSearchActive(true)}
+              >
+                <Ionicons name="search" size={24} color="#6366f1" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.trashButton}
+                onPress={() => router.push('./../../trash' as any)}
+              >
+                <Ionicons name="trash-outline" size={24} color="#6366f1" />
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : (
+          <View style={styles.searchContainer}>
+            <TouchableOpacity 
+              style={styles.backSearchButton}
+              onPress={() => {
+                setIsSearchActive(false);
+                setSearchQuery('');
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#6366f1" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm theo tên, danh mục, số tiền..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                style={styles.clearSearchButton}
+                onPress={() => setSearchQuery('')}
+              >
+                <Ionicons name="close" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View><View style={styles.summaryCard}>
         <View style={styles.balanceRow}>
           <View style={styles.balanceItem}>
             <Text style={styles.balanceLabel}>Thu nhập</Text>
@@ -345,9 +458,56 @@ export default function ExpenseTrackerScreen() {
               <Text style={styles.saveButtonText}>
                 Thêm {transactionType === 'income' ? 'Thu nhập' : 'Chi tiêu'}
               </Text>
+            </TouchableOpacity>          </View>
+        </View>
+      </Modal>
+
+      {/* Context Menu Modal cho Long Press */}
+      <Modal
+        transparent={true}
+        visible={contextMenuVisible}
+        animationType="none"
+        onRequestClose={hideContextMenu}
+      >
+        <TouchableOpacity 
+          style={styles.contextMenuOverlay}
+          activeOpacity={1}
+          onPress={hideContextMenu}
+        >
+          <View 
+            style={[
+              styles.contextMenu,
+              { 
+                left: contextMenuPosition.x, 
+                top: contextMenuPosition.y - 100 
+              }
+            ]}
+          >
+            <TouchableOpacity 
+              style={styles.contextMenuItem}
+              onPress={() => {
+                hideContextMenu();
+                if (selectedTransaction) {
+                  router.push({
+                    pathname: '/edit-transaction/[id]',
+                    params: { id: selectedTransaction.id }
+                  });
+                }
+              }}
+            >
+              <Ionicons name="create-outline" size={20} color="#6366f1" />
+              <Text style={styles.contextMenuText}>Sửa</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.contextMenuItem, styles.contextMenuItemDanger]}
+              onPress={confirmDeleteTransaction}
+            >
+              <Ionicons name="trash-outline" size={20} color="#ef4444" />
+              <Text style={[styles.contextMenuText, styles.contextMenuTextDanger]}>Xóa</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -357,9 +517,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
-  },
-  header: {
+  },  header: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 20,
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -369,6 +531,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+  },
+  trashButton: {
+    padding: 8,
   },
   title: {
     fontSize: 24,
@@ -665,10 +830,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 8,
-  },
-  saveButtonText: {
+  },  saveButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Context Menu Styles
+  contextMenuOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  contextMenu: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    minWidth: 120,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  contextMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  contextMenuItemDanger: {
+    borderBottomWidth: 0,
+  },
+  contextMenuText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1e293b',
+    marginLeft: 12,
+  },
+  contextMenuTextDanger: {
+    color: '#ef4444',
   },
 });
