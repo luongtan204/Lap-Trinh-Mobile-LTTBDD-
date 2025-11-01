@@ -9,7 +9,8 @@ import {
   Alert,
   Modal,
   Pressable,
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -64,7 +65,15 @@ export default function ExpenseTrackerScreen() {
       setTransactions(convertedTransactions);
     } catch (error) {
       console.error('Error loading transactions:', error);
+    } finally {
+      setRefreshing(false);
     }
+  };
+
+  // Pull to refresh function
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadTransactions();
   };
 
   // Lọc transactions theo tìm kiếm
@@ -372,14 +381,21 @@ export default function ExpenseTrackerScreen() {
             <Ionicons name="search" size={64} color="#d1d5db" />
             <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
             <Text style={styles.emptySubtext}>Thử tìm kiếm với từ khóa khác</Text>
-          </View>
-        ) : (
+          </View>        ) : (
           <FlatList
             data={filteredTransactions}
             renderItem={renderTransactionItem}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#6366f1']}
+                tintColor="#6366f1"
+              />
+            }
           />
         )}
       </View>

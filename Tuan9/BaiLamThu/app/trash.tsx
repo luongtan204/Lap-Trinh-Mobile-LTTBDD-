@@ -8,6 +8,9 @@ import {
   Alert,
   RefreshControl,
   TextInput,
+  Modal,
+  Pressable,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,12 +21,14 @@ interface DeletedTransaction extends Task {
   deletedAt: string;
 }
 
-export default function TrashScreen() {
-  const [deletedTransactions, setDeletedTransactions] = useState<DeletedTransaction[]>([]);
+export default function TrashScreen() {  const [deletedTransactions, setDeletedTransactions] = useState<DeletedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [contextMenuVisible, setContextMenuVisible] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedTransaction, setSelectedTransaction] = useState<DeletedTransaction | null>(null);
 
   useEffect(() => {
     loadDeletedTransactions();
@@ -112,7 +117,6 @@ export default function TrashScreen() {
       ]
     );
   };
-
   const clearAllTrash = () => {
     Alert.alert(
       'Xóa Tất Cả',
@@ -139,6 +143,42 @@ export default function TrashScreen() {
     );
   };
 
+  // Context menu functions for long press
+  const showContextMenu = (transaction: DeletedTransaction, event: any) => {
+    const { pageX, pageY } = event.nativeEvent;
+    const screenWidth = Dimensions.get('window').width;
+    const menuWidth = 150;
+    
+    // Adjust position to keep menu within screen bounds
+    let x = pageX;
+    if (x + menuWidth > screenWidth) {
+      x = screenWidth - menuWidth - 10;
+    }
+    
+    setSelectedTransaction(transaction);
+    setContextMenuPosition({ x, y: pageY });
+    setContextMenuVisible(true);
+  };
+
+  const hideContextMenu = () => {
+    setContextMenuVisible(false);
+    setSelectedTransaction(null);
+  };
+
+  const handleRestoreFromMenu = () => {
+    if (selectedTransaction) {
+      restoreTransaction(selectedTransaction.id);
+      hideContextMenu();
+    }
+  };
+
+  const handlePermanentDeleteFromMenu = () => {
+    if (selectedTransaction) {
+      permanentDeleteTransaction(selectedTransaction.id, selectedTransaction.title);
+      hideContextMenu();
+    }
+  };
+
   const getCategoryIcon = (category: string) => {
     const icons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
       Food: 'restaurant',
@@ -150,9 +190,12 @@ export default function TrashScreen() {
     };
     return icons[category] || 'ellipsis-horizontal';
   };
-
   const renderDeletedItem = ({ item }: { item: DeletedTransaction }) => (
-    <View style={styles.deletedItem}>
+    <Pressable 
+      style={styles.deletedItem}
+      onLongPress={(event) => showContextMenu(item, event)}
+      android_ripple={{ color: '#f1f5f9' }}
+    >
       <View style={styles.deletedItemContent}>
         <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2', opacity: 0.7 }]}>
           <Ionicons 
@@ -195,7 +238,7 @@ export default function TrashScreen() {
           <Text style={styles.permanentDeleteButtonText}>Xóa vĩnh viễn</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Pressable>
   );
 
   if (loading) {
