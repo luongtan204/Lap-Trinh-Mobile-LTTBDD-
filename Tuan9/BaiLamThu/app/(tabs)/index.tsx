@@ -351,16 +351,31 @@ export default function ExpenseTrackerScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.listContainer}>
-        <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
+      <View style={styles.listContainer}>        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            {isSearchActive && searchQuery ? `Kết quả tìm kiếm (${filteredTransactions.length})` : 'Giao dịch gần đây'}
+          </Text>
+          {searchQuery && (
+            <Text style={styles.searchResultText}>
+              Tìm kiếm: "{searchQuery}"
+            </Text>
+          )}
+        </View>
         {transactions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="wallet" size={64} color="#d1d5db" />
             <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
             <Text style={styles.emptySubtext}>Thêm giao dịch đầu tiên để bắt đầu</Text>
           </View>
-        ) : (          <FlatList
-            data={transactions}
+        ) : filteredTransactions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="search" size={64} color="#d1d5db" />
+            <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
+            <Text style={styles.emptySubtext}>Thử tìm kiếm với từ khóa khác</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredTransactions}
             renderItem={renderTransactionItem}
             keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
@@ -531,9 +546,39 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-  },
-  trashButton: {
+  },  trashButton: {
     padding: 8,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  backSearchButton: {
+    padding: 8,
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    backgroundColor: '#f9fafb',
+    fontSize: 16,
+  },
+  clearSearchButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   title: {
     fontSize: 24,
@@ -618,12 +663,19 @@ const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
     paddingHorizontal: 16,
+  },  sectionHeader: {
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 16,
+    marginBottom: 4,
+  },
+  searchResultText: {
+    fontSize: 14,
+    color: '#6366f1',
+    fontStyle: 'italic',
   },
   emptyState: {
     flex: 1,

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +22,8 @@ export default function TrashScreen() {
   const [deletedTransactions, setDeletedTransactions] = useState<DeletedTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchActive, setIsSearchActive] = useState(false);
 
   useEffect(() => {
     loadDeletedTransactions();
@@ -45,11 +48,23 @@ export default function TrashScreen() {
       setRefreshing(false);
     }
   };
-
   const onRefresh = () => {
     setRefreshing(true);
     loadDeletedTransactions();
   };
+
+  // Lọc deleted transactions theo tìm kiếm
+  const filteredDeletedTransactions = deletedTransactions.filter(transaction => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      transaction.title.toLowerCase().includes(query) ||
+      transaction.category.toLowerCase().includes(query) ||
+      transaction.amount.toString().includes(query) ||
+      (transaction.type === 'income' ? 'thu' : 'chi').includes(query)
+    );
+  });
 
   const restoreTransaction = (id: number) => {
     Alert.alert(
@@ -192,29 +207,67 @@ export default function TrashScreen() {
       </SafeAreaView>
     );
   }
-
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container}>      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#1e293b" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Thùng Rác</Text>
-        {deletedTransactions.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearAllButton}
-            onPress={clearAllTrash}
-          >
-            <Ionicons name="trash" size={20} color="#ef4444" />
-          </TouchableOpacity>
+        {!isSearchActive ? (
+          <>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1e293b" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Thùng Rác</Text>
+            <View style={styles.headerActions}>
+              {deletedTransactions.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.searchButton}
+                  onPress={() => setIsSearchActive(true)}
+                >
+                  <Ionicons name="search" size={24} color="#6366f1" />
+                </TouchableOpacity>
+              )}
+              {deletedTransactions.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearAllButton}
+                  onPress={clearAllTrash}
+                >
+                  <Ionicons name="trash" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        ) : (
+          <View style={styles.searchContainer}>
+            <TouchableOpacity 
+              style={styles.backSearchButton}
+              onPress={() => {
+                setIsSearchActive(false);
+                setSearchQuery('');
+              }}
+            >
+              <Ionicons name="arrow-back" size={24} color="#6366f1" />
+            </TouchableOpacity>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Tìm kiếm trong thùng rác..."
+              placeholderTextColor="#9ca3af"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity 
+                style={styles.clearSearchButton}
+                onPress={() => setSearchQuery('')}
+              >
+                <Ionicons name="close" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
-      </View>
-
-      {/* Content */}
+      </View>      {/* Content */}
       <View style={styles.content}>
         {deletedTransactions.length === 0 ? (
           <View style={styles.emptyState}>
@@ -224,17 +277,38 @@ export default function TrashScreen() {
               Các giao dịch đã xóa sẽ xuất hiện ở đây
             </Text>
           </View>
+        ) : filteredDeletedTransactions.length === 0 && isSearchActive && searchQuery.trim() ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="search-outline" size={64} color="#d1d5db" />
+            <Text style={styles.emptyText}>Không tìm thấy kết quả</Text>
+            <Text style={styles.emptySubtext}>
+              Thử tìm kiếm với từ khóa khác trong thùng rác
+            </Text>
+          </View>
         ) : (
-          <>
-            <View style={styles.infoCard}>
+          <>            <View style={styles.infoCard}>
               <Ionicons name="information-circle" size={20} color="#6366f1" />
               <Text style={styles.infoText}>
-                {deletedTransactions.length} giao dịch đã xóa. Bạn có thể khôi phục hoặc xóa vĩnh viễn.
+                {isSearchActive && searchQuery.trim() 
+                  ? `${filteredDeletedTransactions.length}/${deletedTransactions.length} giao dịch phù hợp`
+                  : `${deletedTransactions.length} giao dịch đã xóa`
+                }. Bạn có thể khôi phục hoặc xóa vĩnh viễn.
               </Text>
             </View>
+              {/* Search Results Info */}
+            {isSearchActive && searchQuery.trim() && (
+              <View style={styles.searchResultsInfo}>
+                <Text style={styles.searchResultsText}>
+                  {filteredDeletedTransactions.length === 0 
+                    ? 'Không tìm thấy kết quả nào'
+                    : `Tìm thấy ${filteredDeletedTransactions.length} kết quả`
+                  }
+                </Text>
+              </View>
+            )}
             
             <FlatList
-              data={deletedTransactions}
+              data={filteredDeletedTransactions}
               renderItem={renderDeletedItem}
               keyExtractor={(item) => item.id.toString()}
               showsVerticalScrollIndicator={false}
@@ -245,6 +319,17 @@ export default function TrashScreen() {
                   onRefresh={onRefresh}
                   colors={['#6366f1']}
                 />
+              }
+              ListEmptyComponent={
+                isSearchActive && searchQuery.trim() ? (
+                  <View style={styles.noResultsContainer}>
+                    <Ionicons name="search-outline" size={48} color="#d1d5db" />
+                    <Text style={styles.noResultsText}>Không tìm thấy kết quả</Text>
+                    <Text style={styles.noResultsSubtext}>
+                      Thử tìm kiếm với từ khóa khác
+                    </Text>
+                  </View>
+                ) : null
               }
             />
           </>
@@ -413,11 +498,73 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-  },
-  permanentDeleteButtonText: {
+  },  permanentDeleteButtonText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#ef4444',
     marginLeft: 6,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  searchButton: {
+    padding: 8,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    marginHorizontal: 8,
+  },
+  backSearchButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+    color: '#1e293b',
+    paddingHorizontal: 8,
+  },
+  clearSearchButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  searchResultsInfo: {
+    backgroundColor: '#f0f9ff',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#6366f1',
+  },
+  searchResultsText: {
+    fontSize: 14,
+    color: '#1e40af',
+    fontWeight: '500',
+  },
+  noResultsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  noResultsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 12,
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
