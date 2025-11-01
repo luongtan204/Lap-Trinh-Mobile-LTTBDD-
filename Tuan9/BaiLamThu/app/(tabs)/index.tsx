@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -11,14 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { databaseService, Task } from '@/services/database';
+import { useCallback } from 'react';
 
 interface Transaction {
-  id: string;
+  id: number;
   title: string;
   amount: number;
   category: string;
-  date: string;
-  createdAt: Date;
+  createdAt: string;
   type: 'income' | 'expense';
 }
 
@@ -29,39 +31,92 @@ export default function ExpenseTrackerScreen() {
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Food');
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
+  const [refreshing, setRefreshing] = useState(false);
 
-  const categories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Others'];
-  const addTransaction = () => {
+  // Initialize database và load transactions
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  const initializeApp = async () => {
+    try {
+      await databaseService.initDatabase();
+      await loadTransactions();
+    } catch (error) {
+      console.error('Error initializing app:', error);
+    }
+  };
+
+  const loadTransactions = async () => {
+    try {
+      const dbTransactions = await databaseService.getAllTransactions();
+      // Convert Task to Transaction format
+      const convertedTransactions: Transaction[] = dbTransactions.map(task => ({
+        id: task.id,
+        title: task.title,
+        amount: task.amount,
+        category: task.category,
+        createdAt: task.createdAt,
+        type: task.type
+      }));
+      setTransactions(convertedTransactions);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    }
+  };
+
+  // Reload data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [])
+  );
+
+  const categories = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Others'];  const addTransaction = async () => {
     if (!title.trim() || !amount.trim()) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      amount: parseFloat(amount),
-      category,
-      date: new Date().toLocaleDateString('vi-VN'),
-      createdAt: new Date(),
-      type: transactionType
-    };
-
-    setTransactions([newTransaction, ...transactions]);
-    setTitle('');
-    setAmount('');
-    setModalVisible(false);
-  };
-  const deleteTransaction = (id: string) => {
+    try {
+      await databaseService.addTransaction(
+        title.trim(),
+        parseFloat(amount),
+        category,
+        transactionType
+      );
+      
+      // Reload transactions from database
+      await loadTransactions();
+      
+      setTitle('');
+      setAmount('');
+      setModalVisible(false);
+      
+      Alert.alert('Thành công', 'Giao dịch đã được thêm vào cơ sở dữ liệu');
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      Alert.alert('Lỗi', 'Không thể thêm giao dịch');
+    }
+  };  const deleteTransaction = (id: number) => {
     Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
+      'Xóa Giao Dịch',
+      'Bạn có chắc chắn muốn xóa giao dịch này?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Hủy', style: 'cancel' },
         { 
-          text: 'Delete', 
+          text: 'Xóa', 
           style: 'destructive',
-          onPress: () => setTransactions(transactions.filter(transaction => transaction.id !== id))
+          onPress: async () => {
+            try {
+              await databaseService.deleteTransaction(id);
+              await loadTransactions();
+              Alert.alert('Thành công', 'Giao dịch đã được xóa');
+            } catch (error) {
+              console.error('Error deleting transaction:', error);
+              Alert.alert('Lỗi', 'Không thể xóa giao dịch');
+            }
+          }
         }
       ]
     );
@@ -96,9 +151,11 @@ export default function ExpenseTrackerScreen() {
       Others: 'ellipsis-horizontal'
     };
     return icons[category] || 'ellipsis-horizontal';
-  };
-  const renderTransactionItem = ({ item }: { item: Transaction }) => (
-    <View style={styles.transactionItem}>
+  };  const renderTransactionItem = ({ item }: { item: Transaction }) => (
+    <TouchableOpacity 
+      style={styles.transactionItem}
+      onPress={() => router.push('/add-transaction')} // Điều hướng khi nhấn vào item theo yêu cầu câu a
+    >
       <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2' }]}>
         <Ionicons 
           name={item.type === 'income' ? 'arrow-down' : 'arrow-up'} 
@@ -109,7 +166,7 @@ export default function ExpenseTrackerScreen() {
       <View style={styles.transactionDetails}>
         <Text style={styles.transactionTitle}>{item.title}</Text>
         <Text style={styles.transactionCategory}>
-          {item.category} • {item.createdAt.toLocaleDateString('vi-VN')} • {item.type === 'income' ? 'Thu' : 'Chi'}
+          {item.category} • {new Date(item.createdAt).toLocaleDateString('vi-VN')} • {item.type === 'income' ? 'Thu' : 'Chi'}
         </Text>
       </View>
       <View style={styles.transactionAmount}>
@@ -120,13 +177,16 @@ export default function ExpenseTrackerScreen() {
           {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
         </Text>
         <TouchableOpacity 
-          onPress={() => deleteTransaction(item.id)}
+          onPress={(e) => {
+            e.stopPropagation(); // Prevent item press
+            deleteTransaction(item.id);
+          }}
           style={styles.deleteButton}
         >
           <Ionicons name="trash" size={16} color="#ef4444" />
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -150,36 +210,24 @@ export default function ExpenseTrackerScreen() {
             ${getTotalBalance().toFixed(2)}
           </Text>
         </View>
-      </View>
-
-      <View style={styles.actionContainer}>
+      </View>      <View style={styles.actionContainer}>
+        {/* Nút Add theo yêu cầu câu b */}
         <TouchableOpacity 
-          style={[styles.addButton, { backgroundColor: transactionType === 'income' ? '#16a34a' : '#dc2626' }]}
-          onPress={() => setModalVisible(true)}
+          style={styles.addButton}
+          onPress={() => router.push('/add-transaction')}
         >
           <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.addButtonText}>
-            Thêm {transactionType === 'income' ? 'Thu nhập' : 'Chi tiêu'}
-          </Text>
+          <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
-        <View style={styles.typeSelector}>
-          <TouchableOpacity 
-            style={[styles.typeButton, transactionType === 'income' && styles.typeButtonActive]}
-            onPress={() => setTransactionType('income')}
-          >
-            <Text style={[styles.typeButtonText, transactionType === 'income' && styles.typeButtonTextActive]}>
-              Thu
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.typeButton, transactionType === 'expense' && styles.typeButtonActive]}
-            onPress={() => setTransactionType('expense')}
-          >
-            <Text style={[styles.typeButtonText, transactionType === 'expense' && styles.typeButtonTextActive]}>
-              Chi
-            </Text>
-          </TouchableOpacity>
-        </View>
+        
+        {/* Quick add modal (giữ lại để có thể thêm nhanh) */}
+        <TouchableOpacity 
+          style={styles.quickAddButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Ionicons name="flash" size={20} color="#6366f1" />
+          <Text style={styles.quickAddText}>Thêm nhanh</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.listContainer}>
@@ -190,11 +238,10 @@ export default function ExpenseTrackerScreen() {
             <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
             <Text style={styles.emptySubtext}>Thêm giao dịch đầu tiên để bắt đầu</Text>
           </View>
-        ) : (
-          <FlatList
+        ) : (          <FlatList
             data={transactions}
             renderItem={renderTransactionItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.id.toString()}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
           />
@@ -208,21 +255,42 @@ export default function ExpenseTrackerScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add New Expense</Text>
+          <View style={styles.modalContent}>            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Thêm {transactionType === 'income' ? 'Thu nhập' : 'Chi tiêu'} nhanh
+              </Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
+            </View>            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Loại giao dịch</Text>
+              <View style={styles.typeSelector}>
+                <TouchableOpacity 
+                  style={[styles.typeButton, transactionType === 'income' && styles.typeButtonActive]}
+                  onPress={() => setTransactionType('income')}
+                >
+                  <Text style={[styles.typeButtonText, transactionType === 'income' && styles.typeButtonTextActive]}>
+                    Thu
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.typeButton, transactionType === 'expense' && styles.typeButtonActive]}
+                  onPress={() => setTransactionType('expense')}
+                >
+                  <Text style={[styles.typeButtonText, transactionType === 'expense' && styles.typeButtonTextActive]}>
+                    Chi
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Title</Text>
+              <Text style={styles.inputLabel}>Tiêu đề</Text>
               <TextInput
                 style={styles.input}
                 value={title}
                 onChangeText={setTitle}
-                placeholder="Enter expense title"
+                placeholder="Nhập tiêu đề giao dịch"
                 placeholderTextColor="#9ca3af"
               />
             </View>
@@ -326,12 +394,12 @@ const styles = StyleSheet.create({
   summaryCount: {
     fontSize: 14,
     color: '#94a3b8',
-  },
-  actionContainer: {
+  },  actionContainer: {
     paddingHorizontal: 16,
     marginBottom: 16,
-  },
-  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },addButton: {
     backgroundColor: '#6366f1',
     flexDirection: 'row',
     alignItems: 'center',
@@ -343,6 +411,30 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  quickAddButton: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#6366f1',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  quickAddText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   addButtonText: {
     color: 'white',
