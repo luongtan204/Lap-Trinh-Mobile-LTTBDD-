@@ -97,24 +97,30 @@ export default function ExpenseTrackerScreen() {
     };
     return icons[category] || 'ellipsis-horizontal';
   };
-
-  const renderExpenseItem = ({ item }: { item: Expense }) => (
-    <View style={styles.expenseItem}>
-      <View style={styles.expenseIcon}>
+  const renderTransactionItem = ({ item }: { item: Transaction }) => (
+    <View style={styles.transactionItem}>
+      <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2' }]}>
         <Ionicons 
-          name={getCategoryIcon(item.category)} 
+          name={item.type === 'income' ? 'arrow-down' : 'arrow-up'} 
           size={24} 
-          color="#6366f1" 
+          color={item.type === 'income' ? '#16a34a' : '#dc2626'} 
         />
       </View>
-      <View style={styles.expenseDetails}>
-        <Text style={styles.expenseTitle}>{item.title}</Text>
-        <Text style={styles.expenseCategory}>{item.category} • {item.date}</Text>
+      <View style={styles.transactionDetails}>
+        <Text style={styles.transactionTitle}>{item.title}</Text>
+        <Text style={styles.transactionCategory}>
+          {item.category} • {item.createdAt.toLocaleDateString('vi-VN')} • {item.type === 'income' ? 'Thu' : 'Chi'}
+        </Text>
       </View>
-      <View style={styles.expenseAmount}>
-        <Text style={styles.amountText}>-${item.amount.toFixed(2)}</Text>
+      <View style={styles.transactionAmount}>
+        <Text style={[
+          styles.amountText, 
+          { color: item.type === 'income' ? '#16a34a' : '#dc2626' }
+        ]}>
+          {item.type === 'income' ? '+' : '-'}${item.amount.toFixed(2)}
+        </Text>
         <TouchableOpacity 
-          onPress={() => deleteExpense(item.id)}
+          onPress={() => deleteTransaction(item.id)}
           style={styles.deleteButton}
         >
           <Ionicons name="trash" size={16} color="#ef4444" />
@@ -127,36 +133,67 @@ export default function ExpenseTrackerScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>EXPENSE TRACKER</Text>
-      </View>
-
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>Total Expenses</Text>
-        <Text style={styles.summaryAmount}>${getTotalExpense().toFixed(2)}</Text>
-        <Text style={styles.summaryCount}>{expenses.length} transactions</Text>
+      </View>      <View style={styles.summaryCard}>
+        <View style={styles.balanceRow}>
+          <View style={styles.balanceItem}>
+            <Text style={styles.balanceLabel}>Thu nhập</Text>
+            <Text style={[styles.balanceAmount, { color: '#16a34a' }]}>+${getTotalIncome().toFixed(2)}</Text>
+          </View>
+          <View style={styles.balanceItem}>
+            <Text style={styles.balanceLabel}>Chi tiêu</Text>
+            <Text style={[styles.balanceAmount, { color: '#dc2626' }]}>-${getTotalExpense().toFixed(2)}</Text>
+          </View>
+        </View>
+        <View style={styles.totalBalance}>
+          <Text style={styles.totalLabel}>Số dư</Text>
+          <Text style={[styles.totalAmount, { color: getTotalBalance() >= 0 ? '#16a34a' : '#dc2626' }]}>
+            ${getTotalBalance().toFixed(2)}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.actionContainer}>
         <TouchableOpacity 
-          style={styles.addButton}
+          style={[styles.addButton, { backgroundColor: transactionType === 'income' ? '#16a34a' : '#dc2626' }]}
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="add" size={24} color="white" />
-          <Text style={styles.addButtonText}>Add Expense</Text>
+          <Text style={styles.addButtonText}>
+            Thêm {transactionType === 'income' ? 'Thu nhập' : 'Chi tiêu'}
+          </Text>
         </TouchableOpacity>
+        <View style={styles.typeSelector}>
+          <TouchableOpacity 
+            style={[styles.typeButton, transactionType === 'income' && styles.typeButtonActive]}
+            onPress={() => setTransactionType('income')}
+          >
+            <Text style={[styles.typeButtonText, transactionType === 'income' && styles.typeButtonTextActive]}>
+              Thu
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.typeButton, transactionType === 'expense' && styles.typeButtonActive]}
+            onPress={() => setTransactionType('expense')}
+          >
+            <Text style={[styles.typeButtonText, transactionType === 'expense' && styles.typeButtonTextActive]}>
+              Chi
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.listContainer}>
-        <Text style={styles.sectionTitle}>Recent Transactions</Text>
-        {expenses.length === 0 ? (
+        <Text style={styles.sectionTitle}>Giao dịch gần đây</Text>
+        {transactions.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="wallet" size={64} color="#d1d5db" />
-            <Text style={styles.emptyText}>No expenses yet</Text>
-            <Text style={styles.emptySubtext}>Add your first expense to get started</Text>
+            <Text style={styles.emptyText}>Chưa có giao dịch nào</Text>
+            <Text style={styles.emptySubtext}>Thêm giao dịch đầu tiên để bắt đầu</Text>
           </View>
         ) : (
           <FlatList
-            data={expenses}
-            renderItem={renderExpenseItem}
+            data={transactions}
+            renderItem={renderTransactionItem}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
@@ -228,10 +265,10 @@ export default function ExpenseTrackerScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-
-            <TouchableOpacity style={styles.saveButton} onPress={addExpense}>
-              <Text style={styles.saveButtonText}>Add Expense</Text>
+            </View>            <TouchableOpacity style={styles.saveButton} onPress={addTransaction}>
+              <Text style={styles.saveButtonText}>
+                Thêm {transactionType === 'income' ? 'Thu nhập' : 'Chi tiêu'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -343,8 +380,72 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
+  },  balanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 20,
   },
-  expenseItem: {
+  balanceItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  balanceLabel: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  balanceAmount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  totalBalance: {
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
+    paddingTop: 16,
+    width: '100%',
+  },
+  totalLabel: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  totalAmount: {
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  typeSelector: {
+    flexDirection: 'row',
+    marginTop: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 4,
+  },
+  typeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  typeButtonActive: {
+    backgroundColor: 'white',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  typeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  typeButtonTextActive: {
+    color: '#1e293b',
+  },
+  transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
@@ -357,29 +458,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
   },
-  expenseIcon: {
+  transactionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  expenseDetails: {
+  transactionDetails: {
     flex: 1,
   },
-  expenseTitle: {
+  transactionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
     marginBottom: 4,
   },
-  expenseCategory: {
+  transactionCategory: {
     fontSize: 14,
     color: '#64748b',
   },
-  expenseAmount: {
+  transactionAmount: {
     alignItems: 'flex-end',
   },
   amountText: {
