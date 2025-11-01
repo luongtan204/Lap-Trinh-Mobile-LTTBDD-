@@ -68,7 +68,6 @@ class DatabaseService {
     const deleteQuery = 'DELETE FROM transactions WHERE id = ?';
     await this.db.runAsync(deleteQuery, [id]);
   }
-
   async getTransactionById(id: number): Promise<Task | null> {
     if (!this.db) throw new Error('Database not initialized');
 
@@ -76,6 +75,18 @@ class DatabaseService {
     const result = await this.db.getFirstAsync(selectQuery, [id]);
     
     return result as Task || null;
+  }
+
+  async updateTransaction(id: number, title: string, amount: number, category: string, type: 'income' | 'expense'): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+
+    const updateQuery = `
+      UPDATE transactions 
+      SET title = ?, amount = ?, category = ?, type = ?
+      WHERE id = ?
+    `;
+
+    await this.db.runAsync(updateQuery, [title, amount, category, type, id]);
   }
 }
 

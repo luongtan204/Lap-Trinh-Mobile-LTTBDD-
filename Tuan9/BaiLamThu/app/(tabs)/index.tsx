@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { databaseService, Task } from '@/services/database';
-import { useCallback } from 'react';
 
 interface Transaction {
   id: number;
@@ -46,7 +45,6 @@ export default function ExpenseTrackerScreen() {
       console.error('Error initializing app:', error);
     }
   };
-
   const loadTransactions = async () => {
     try {
       const dbTransactions = await databaseService.getAllTransactions();
@@ -64,6 +62,13 @@ export default function ExpenseTrackerScreen() {
       console.error('Error loading transactions:', error);
     }
   };
+
+  // Reload data when screen comes into focus - cập nhật lại danh sách theo yêu cầu câu c
+  useFocusEffect(
+    useCallback(() => {
+      loadTransactions();
+    }, [])
+  );
 
   // Reload data when screen comes into focus
   useFocusEffect(
@@ -154,7 +159,10 @@ export default function ExpenseTrackerScreen() {
   };  const renderTransactionItem = ({ item }: { item: Transaction }) => (
     <TouchableOpacity 
       style={styles.transactionItem}
-      onPress={() => router.push('/add-transaction')} // Điều hướng khi nhấn vào item theo yêu cầu câu a
+      onPress={() => router.push({
+        pathname: '/edit-transaction/[id]',
+        params: { id: item.id }
+      })} // Điều hướng đến Edit Screen theo yêu cầu câu a
     >
       <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2' }]}>
         <Ionicons 
