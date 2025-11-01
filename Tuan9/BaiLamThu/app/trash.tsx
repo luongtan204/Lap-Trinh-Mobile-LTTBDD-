@@ -38,21 +38,23 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
     useCallback(() => {
       loadDeletedTransactions();
     }, [])
-  );
-  const loadDeletedTransactions = async () => {
+  );  const loadDeletedTransactions = async () => {
     try {
       await databaseService.initDatabase();
       const deleted = await databaseService.getDeletedTransactions();
       
+      // Ensure deleted is an array
+      const deletedArray = Array.isArray(deleted) ? deleted : [];
+      
       // Filter and validate deleted transactions
-      const validDeletedTransactions = deleted
-        .filter(item => item && item.isDeleted === 1)
+      const validDeletedTransactions = deletedArray
+        .filter(item => item && typeof item === 'object' && item.isDeleted === 1 && typeof item.id !== 'undefined')
         .map(item => ({
           ...item,
-          title: item.title || 'Untitled',
-          amount: item.amount || 0,
-          category: item.category || 'Others',
-          type: item.type || 'expense',
+          title: String(item.title || 'Untitled Transaction'),
+          amount: typeof item.amount === 'number' ? item.amount : 0,
+          category: String(item.category || 'Others'),
+          type: (item.type === 'income' || item.type === 'expense') ? item.type : 'expense',
           createdAt: item.createdAt || new Date().toISOString(),
           deletedAt: item.deletedAt || new Date().toISOString()
         })) as DeletedTransaction[];
@@ -71,18 +73,28 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
     setRefreshing(true);
     loadDeletedTransactions();
   };
-
-  // Lọc deleted transactions theo tìm kiếm
+  // Lọc deleted transactions theo tìm kiếm với error handling
   const filteredDeletedTransactions = deletedTransactions.filter(transaction => {
-    if (!searchQuery.trim()) return true;
-    
-    const query = searchQuery.toLowerCase();
-    return (
-      transaction.title.toLowerCase().includes(query) ||
-      transaction.category.toLowerCase().includes(query) ||
-      transaction.amount.toString().includes(query) ||
-      (transaction.type === 'income' ? 'thu' : 'chi').includes(query)
-    );
+    try {
+      if (!transaction || typeof transaction !== 'object') return false;
+      if (!searchQuery.trim()) return true;
+      
+      const query = searchQuery.toLowerCase();
+      const title = String(transaction.title || '').toLowerCase();
+      const category = String(transaction.category || '').toLowerCase();
+      const amount = String(transaction.amount || '0');
+      const type = transaction.type === 'income' ? 'thu' : 'chi';
+      
+      return (
+        title.includes(query) ||
+        category.includes(query) ||
+        amount.includes(query) ||
+        type.includes(query)
+      );
+    } catch (error) {
+      console.error('Error filtering transaction:', error);
+      return false;
+    }
   });
 
   const restoreTransaction = (id: number) => {
@@ -203,54 +215,69 @@ export default function TrashScreen() {  const [deletedTransactions, setDeletedT
       Others: 'ellipsis-horizontal'
     };
     return icons[category] || 'ellipsis-horizontal';
-  };
-  const renderDeletedItem = ({ item }: { item: DeletedTransaction }) => (
-    <Pressable 
-      style={styles.deletedItem}
-      onLongPress={(event) => showContextMenu(item, event)}
-      android_ripple={{ color: '#f1f5f9' }}
-    >
-      <View style={styles.deletedItemContent}>
-        <View style={[styles.transactionIcon, { backgroundColor: item.type === 'income' ? '#dcfce7' : '#fee2e2', opacity: 0.7 }]}>
-          <Ionicons 
-            name={item.type === 'income' ? 'arrow-down' : 'arrow-up'} 
-            size={20} 
-            color={item.type === 'income' ? '#16a34a' : '#dc2626'} 
-          />
-        </View>
-        <View style={styles.deletedItemDetails}>
-          <Text style={styles.deletedItemTitle}>{item.title}</Text>          <Text style={styles.deletedItemInfo}>
-            {item.category} • {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN') : 'N/A'} • {item.type === 'income' ? 'Thu' : 'Chi'}
-          </Text><Text style={styles.deletedDate}>
-            Đã xóa: {item.deletedAt ? new Date(item.deletedAt).toLocaleDateString('vi-VN') : 'N/A'} lúc {item.deletedAt ? new Date(item.deletedAt).toLocaleTimeString('vi-VN') : 'N/A'}
-          </Text>
-        </View>        <Text style={[
-          styles.deletedItemAmount, 
-          { color: item.type === 'income' ? '#16a34a' : '#dc2626' }
-        ]}>
-          {item.type === 'income' ? '+' : '-'}${(item.amount || 0).toFixed(2)}
-        </Text>
-      </View>
-      
-      <View style={styles.deletedItemActions}>
-        <TouchableOpacity 
-          style={styles.restoreButton}
-          onPress={() => restoreTransaction(item.id)}
-        >
-          <Ionicons name="refresh" size={16} color="#10b981" />
-          <Text style={styles.restoreButtonText}>Khôi phục</Text>
-        </TouchableOpacity>
+  };  const renderDeletedItem = ({ item }: { item: DeletedTransaction }) => {
+    // Ensure all required fields have valid values
+    if (!item || typeof item.id === 'undefined') {
+      return null;
+    }
+
+    const safeTitle = item.title || 'Untitled Transaction';
+    const safeCategory = item.category || 'Others';
+    const safeAmount = typeof item.amount === 'number' ? item.amount : 0;
+    const safeType = item.type === 'income' ? 'income' : 'expense';
+    const safeCreatedAt = item.createdAt || new Date().toISOString();
+    const safeDeletedAt = item.deletedAt || new Date().toISOString();
+
+    return (
+      <Pressable 
+        style={styles.deletedItem}
+        onLongPress={(event) => showContextMenu(item, event)}
+        android_ripple={{ color: '#f1f5f9' }}
+      >
+        <View style={styles.deletedItemContent}>
+          <View style={[styles.transactionIcon, { backgroundColor: safeType === 'income' ? '#dcfce7' : '#fee2e2', opacity: 0.7 }]}>
+            <Ionicons 
+              name={safeType === 'income' ? 'arrow-down' : 'arrow-up'} 
+              size={20} 
+              color={safeType === 'income' ? '#16a34a' : '#dc2626'} 
+            />
+          </View>
+          <View style={styles.deletedItemDetails}>
+            <Text style={styles.deletedItemTitle}>{safeTitle}</Text>
+            <Text style={styles.deletedItemInfo}>
+              {safeCategory} • {new Date(safeCreatedAt).toLocaleDateString('vi-VN')} • {safeType === 'income' ? 'Thu' : 'Chi'}
+            </Text>
+            <Text style={styles.deletedDate}>
+              Đã xóa: {new Date(safeDeletedAt).toLocaleDateString('vi-VN')} lúc {new Date(safeDeletedAt).toLocaleTimeString('vi-VN')}
+            </Text>
+          </View>
+          <Text style={[
+            styles.deletedItemAmount, 
+            { color: safeType === 'income' ? '#16a34a' : '#dc2626' }
+          ]}>
+            {safeType === 'income' ? '+' : '-'}${safeAmount.toFixed(2)}
+          </Text>        </View>
         
-        <TouchableOpacity 
-          style={styles.permanentDeleteButton}
-          onPress={() => permanentDeleteTransaction(item.id, item.title)}
-        >
-          <Ionicons name="trash" size={16} color="#ef4444" />
-          <Text style={styles.permanentDeleteButtonText}>Xóa vĩnh viễn</Text>
-        </TouchableOpacity>
-      </View>
-    </Pressable>
-  );
+        <View style={styles.deletedItemActions}>
+          <TouchableOpacity 
+            style={styles.restoreButton}
+            onPress={() => restoreTransaction(item.id)}
+          >
+            <Ionicons name="refresh" size={16} color="#10b981" />
+            <Text style={styles.restoreButtonText}>Khôi phục</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.permanentDeleteButton}
+            onPress={() => permanentDeleteTransaction(item.id, safeTitle)}
+          >
+            <Ionicons name="trash" size={16} color="#ef4444" />
+            <Text style={styles.permanentDeleteButtonText}>Xóa vĩnh viễn</Text>
+          </TouchableOpacity>
+        </View>
+      </Pressable>
+    );
+  };
 
   if (loading) {
     return (

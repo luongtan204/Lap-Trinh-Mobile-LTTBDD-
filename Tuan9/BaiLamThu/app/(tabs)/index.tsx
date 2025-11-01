@@ -317,22 +317,21 @@ export default function ExpenseTrackerScreen() {
                 onPress={() => setIsSearchActive(true)}
               >
                 <Ionicons name="search" size={24} color="#6366f1" />
-              </TouchableOpacity>
-              <TouchableOpacity 
+              </TouchableOpacity>              <TouchableOpacity 
                 style={styles.statisticsButton}
-                onPress={() => router.push('./../../statistics' as any)}
+                onPress={() => router.push('/statistics')}
               >
                 <Ionicons name="stats-chart" size={24} color="#6366f1" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.syncButton}
-                onPress={() => router.push('./../../sync' as any)}
+                onPress={() => router.push('/sync')}
               >
                 <Ionicons name="cloud" size={24} color="#6366f1" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.trashButton}
-                onPress={() => router.push('./../../trash' as any)}
+                onPress={() => router.push('/trash')}
               >
                 <Ionicons name="trash-outline" size={24} color="#6366f1" />
               </TouchableOpacity>
