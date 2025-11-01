@@ -35,9 +35,9 @@ export default function ExpenseTrackerScreen() {
   const [category, setCategory] = useState('Food');  const [transactionType, setTransactionType] = useState<'income' | 'expense'>('expense');
   const [refreshing, setRefreshing] = useState(false);  const [contextMenuVisible, setContextMenuVisible] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);  const [searchQuery, setSearchQuery] = useState('');
   const [isSearchActive, setIsSearchActive] = useState(false);
+  const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
 
   // Initialize database và load transactions
   useEffect(() => {
@@ -104,9 +104,13 @@ export default function ExpenseTrackerScreen() {
       ]
     );
   };
-
-  // Lọc transactions theo tìm kiếm
+  // Lọc transactions theo tìm kiếm và loại
   const filteredTransactions = transactions.filter(transaction => {
+    // Filter by type
+    if (filterType === 'income' && transaction.type !== 'income') return false;
+    if (filterType === 'expense' && transaction.type !== 'expense') return false;
+    
+    // Filter by search query
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase();
@@ -374,7 +378,74 @@ export default function ExpenseTrackerScreen() {
             ${getTotalBalance().toFixed(2)}
           </Text>
         </View>
-      </View>      <View style={styles.actionContainer}>
+      </View>
+
+      {/* Filter Section */}
+      <View style={styles.filterContainer}>
+        <Text style={styles.filterLabel}>Hiển thị:</Text>
+        <View style={styles.filterButtons}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filterType === 'all' && styles.filterButtonActive
+            ]}
+            onPress={() => setFilterType('all')}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              filterType === 'all' && styles.filterButtonTextActive
+            ]}>
+              Tất cả
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              styles.filterButtonIncome,
+              filterType === 'income' && styles.filterButtonIncomeActive
+            ]}
+            onPress={() => setFilterType('income')}
+          >
+            <Ionicons 
+              name="arrow-down" 
+              size={16} 
+              color={filterType === 'income' ? 'white' : '#16a34a'} 
+            />
+            <Text style={[
+              styles.filterButtonText,
+              styles.filterButtonTextIncome,
+              filterType === 'income' && styles.filterButtonTextIncomeActive
+            ]}>
+              Thu
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              styles.filterButtonExpense,
+              filterType === 'expense' && styles.filterButtonExpenseActive
+            ]}
+            onPress={() => setFilterType('expense')}
+          >
+            <Ionicons 
+              name="arrow-up" 
+              size={16} 
+              color={filterType === 'expense' ? 'white' : '#dc2626'} 
+            />
+            <Text style={[
+              styles.filterButtonText,
+              styles.filterButtonTextExpense,
+              filterType === 'expense' && styles.filterButtonTextExpenseActive
+            ]}>
+              Chi
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.actionContainer}>
         {/* Nút Add theo yêu cầu câu b */}
         <TouchableOpacity 
           style={styles.addButton}
@@ -1009,5 +1080,83 @@ const styles = StyleSheet.create({
   },
   contextMenuTextDanger: {
     color: '#ef4444',
+  },
+  // Filter Section Styles
+  filterContainer: {
+    backgroundColor: 'white',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    backgroundColor: '#f9fafb',
+  },
+  filterButtonActive: {
+    backgroundColor: '#f3f4f6',
+    borderColor: '#6b7280',
+  },
+  filterButtonIncome: {
+    borderColor: '#16a34a',
+    backgroundColor: '#f0fdf4',
+  },
+  filterButtonIncomeActive: {
+    backgroundColor: '#16a34a',
+    borderColor: '#16a34a',
+  },
+  filterButtonExpense: {
+    borderColor: '#dc2626',
+    backgroundColor: '#fef2f2',
+  },
+  filterButtonExpenseActive: {
+    backgroundColor: '#dc2626',
+    borderColor: '#dc2626',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginLeft: 4,
+  },
+  filterButtonTextActive: {
+    color: '#1f2937',
+    fontWeight: '600',
+  },
+  filterButtonTextIncome: {
+    color: '#16a34a',
+  },
+  filterButtonTextIncomeActive: {
+    color: 'white',
+  },
+  filterButtonTextExpense: {
+    color: '#dc2626',
+  },
+  filterButtonTextExpenseActive: {
+    color: 'white',
   },
 });
