@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { databaseService, Task } from '@/services/database';
+import { syncService } from '@/services/syncService';
 
 interface Transaction {
   id: number;
@@ -69,11 +70,39 @@ export default function ExpenseTrackerScreen() {
       setRefreshing(false);
     }
   };
-
   // Pull to refresh function
   const onRefresh = () => {
     setRefreshing(true);
     loadTransactions();
+  };
+
+  // Quick sync function
+  const quickSync = async () => {
+    Alert.alert(
+      'Đồng bộ nhanh',
+      'Tải lên tất cả giao dịch lên API với URL mặc định?',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Đồng bộ',
+          onPress: async () => {
+            setRefreshing(true);
+            try {
+              const result = await syncService.syncToApi();
+              if (result.success) {
+                Alert.alert('Thành công', `Đã đồng bộ ${result.uploaded} giao dịch lên API`);
+              } else {
+                Alert.alert('Lỗi đồng bộ', result.error || 'Không thể đồng bộ. Vui lòng kiểm tra cài đặt đồng bộ.');
+              }
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không thể đồng bộ. Vui lòng kiểm tra cài đặt đồng bộ.');
+            } finally {
+              setRefreshing(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Lọc transactions theo tìm kiếm
@@ -278,13 +307,18 @@ export default function ExpenseTrackerScreen() {
       <View style={styles.header}>
         {!isSearchActive ? (
           <>
-            <Text style={styles.title}>EXPENSE TRACKER</Text>
-            <View style={styles.headerButtons}>
+            <Text style={styles.title}>EXPENSE TRACKER</Text>            <View style={styles.headerButtons}>
               <TouchableOpacity 
                 style={styles.searchButton}
                 onPress={() => setIsSearchActive(true)}
               >
                 <Ionicons name="search" size={24} color="#6366f1" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.syncButton}
+                onPress={() => router.push('./../../sync' as any)}
+              >
+                <Ionicons name="cloud" size={24} color="#6366f1" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.trashButton}
@@ -350,13 +384,22 @@ export default function ExpenseTrackerScreen() {
           <Text style={styles.addButtonText}>Add</Text>
         </TouchableOpacity>
         
+        {/* Quick sync button */}
+        <TouchableOpacity 
+          style={styles.quickSyncButton}
+          onPress={quickSync}
+        >
+          <Ionicons name="cloud-upload" size={20} color="#10b981" />
+          <Text style={styles.quickSyncText}>Sync</Text>
+        </TouchableOpacity>
+        
         {/* Quick add modal (giữ lại để có thể thêm nhanh) */}
         <TouchableOpacity 
           style={styles.quickAddButton}
           onPress={() => setModalVisible(true)}
         >
           <Ionicons name="flash" size={20} color="#6366f1" />
-          <Text style={styles.quickAddText}>Thêm nhanh</Text>
+          <Text style={styles.quickAddText}>Nhanh</Text>
         </TouchableOpacity>
       </View>
 
@@ -568,8 +611,11 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+  },  searchButton: {
+    padding: 8,
+    marginRight: 8,
   },
-  searchButton: {
+  syncButton: {
     padding: 8,
     marginRight: 8,
   },
@@ -633,7 +679,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     flexDirection: 'row',
     alignItems: 'center',
-  },addButton: {
+  },  addButton: {
     backgroundColor: '#6366f1',
     flexDirection: 'row',
     alignItems: 'center',
@@ -646,7 +692,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     flex: 1,
-    marginRight: 8,
+    marginHorizontal: 4,
   },
   quickAddButton: {
     backgroundColor: 'white',
@@ -654,7 +700,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#6366f1',
@@ -663,9 +709,32 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-  },
-  quickAddText: {
+    marginHorizontal: 4,
+  },quickAddText: {
     color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  quickSyncButton: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginHorizontal: 4,
+  },
+  quickSyncText: {
+    color: '#10b981',
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 6,
